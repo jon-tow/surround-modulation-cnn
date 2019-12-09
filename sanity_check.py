@@ -1,6 +1,7 @@
 import unittest
 from typing import Callable
 
+import torch
 import model
 
 
@@ -25,6 +26,14 @@ def test_it(name: str, test: Callable):
 
 
 class SurroundModulationTests(unittest.TestCase):
+
+    def test_SMConv(self):
+        def test():
+            input = torch.ones([2, 3, 32, 32])
+            sm_conv = model.SMConv()
+            output = sm_conv(input)
+            print(output.shape)
+        test_it('SMConv', test)
 
     def test_surround_modulation(self):
         def test():
