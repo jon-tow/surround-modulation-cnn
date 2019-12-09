@@ -43,7 +43,7 @@ class SurroundModulationTests(unittest.TestCase):
 
     def test_dog(self):
         def test():
-            dog = model.DoG((5, 5), σs=(2.1, 0.85))
+            dog = model.DoG((5, 5), σ_1=2.1, σ_2=0.85)
             print(dog)
         test_it('DoG', test)
 
