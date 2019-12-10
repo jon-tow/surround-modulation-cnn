@@ -174,6 +174,10 @@ class SMCNN(nn.Module):
 
     Arguments:
     - num_classes: The number of class scores to return.
+
+    TODO:
+    - [ ] Allow users to pass in hidden channel sizes and feature sizes.
+    - [ ] Allow users to pass in dropout rate.
     """
 
     def __init__(
