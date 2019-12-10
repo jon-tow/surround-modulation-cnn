@@ -1,4 +1,4 @@
-from typing import Tuple, List, Union
+from typing import Tuple
 
 import math
 import torch
@@ -11,98 +11,82 @@ import torch.nn.functional as F
 # Gaussian Kernels.
 
 
-def gaussian1d(size: int, σ: float) -> torch.Tensor:
+def gaussian1d(kernel_size: int, σ: float) -> torch.Tensor:
     """
-    Returns a 1-dimensional Gaussian kernel with the specified size and standard
-    deviation.
+    Returns a 1D Gaussian kernel of the specified kernel size with spread, σ.
 
     Arguments:
-    - size: The size of the resulting 1D Gaussian kernel.
+    - kernel_size: The size of the resulting 1D Gaussian kernel.
     - σ: The standard deviation of the Gaussian.
     """
-    assert size % 2 != 0, f'Kernel size must be an odd integer > 0. Got: {size}'
-    assert σ > 0, f'Standard deviation must be non-negative > 0. Got: {σ}'
+    assert kernel_size % 2 != 0, f'Kernel size must be an odd integer > 0. Got: {kernel_size}'
+    assert σ > 0, f'Standard deviation must be non-negative. Got: {σ}'
 
-    center = size // 2
-    x = torch.arange(0, size, dtype=torch.float32)
+    center = kernel_size // 2
+    x = torch.arange(0, kernel_size, dtype=torch.float32)
     normalization = 1 / (σ * torch.sqrt(torch.tensor(2 * π)))
     kernel = normalization * torch.exp(-(x - center)**2 / (2 * σ**2))
-    return kernel
+    return kernel / kernel.sum()
 
 
-def gaussian2d(
-    size: Union[int, Tuple[int, int]],
-    σ: Union[float, Tuple[float, float]]
-) -> torch.Tensor:
+def gaussian2d(kernel_size: Tuple[int, int], σ: float) -> torch.Tensor:
     """
-    Returns a 2-dimensional Gaussian kernel with the specified size and standard
-    deviations. It is constructed by multiplying two 1-dimensional Gaussian
-    kernels (See: Gaussian Separability).
+    Returns a 2D Gaussian kernel constructed by multiplying two 1D Gaussian
+    kernels of the specified kernel size with spread, σ.
 
     Arguments:
-    - size: A 2-tuple describing the height and width of the resulting 2D
-            Gaussian kernel: `(size_x, size_y)`. If just an `int` is specified,
-            the kernel will be symmetric: `(size, size)`.
-    - σ: A 2-tuple or float of standard deviations used to form the 2D spread of
-         the kernel: `(σ_x, σ_y)`. If just a `float` is specified, the spreads
-         will be symmetric: `(σ, σ)`.
+    - kernel_sizes: A 2-tuple of kernel sizes for the height and width spatial
+                    dimensions of the resulting 2D Gaussian:
+                    `(height, width)`
+    - σ: The standard deviation of the 2D Gaussian.
     """
-    size_x, size_y = size if isinstance(size, Tuple) else (size, size)
-    σ_x, σ_y = σ if isinstance(σ, Tuple) else (σ, σ)
-
-    kernel_x = gaussian1d(size_x, σ_x)
-    kernel_y = gaussian1d(size_y, σ_y)
+    height, width = kernel_size[0], kernel_size[1]
+    kernel_x = gaussian1d(width, σ)
+    kernel_y = gaussian1d(height, σ)
     # Note: `torch.ger` is the outer product (weird name from BLAS...).
     kernel = torch.ger(kernel_x, kernel_y)  # By separability of 1D Gaussians.
     return kernel
 
 
-def DoG(
-    size: Union[float, Tuple[int, int]],
-    σ_1: Union[float, Tuple[float, float]],
-    σ_2: Union[float, Tuple[float, float]]
-) -> torch.Tensor:
+def DoG(kernel_size: Tuple[int, int], σs: Tuple[float, float]) -> torch.Tensor:
     """
-    Returns the difference of Gaussians (DoG) between two Gaussian kernels of
-    the same shape formed by the specified standard deviations.
+    Returns the Difference of Gaussians (DoG) between two Gaussian kernels formed
+    by the given standard deviations.
     See equation `(1)` of the paper.
 
     Arguments:
-    - size: A 2-tuple describing the height and width of the resulting 2D
-            Gaussian kernel: `(size_x, size_y)`. If just an `int` is specified,
-            the kernel will be symmetric: `(size, size)`.
-    - σ_1: A 2-tuple of standard deviations used to construct the first 2D
-           Gaussian kernel that will be the minuend of the difference. If just a
-           `float` is specified, the spreads will be symmetric: `(σ_1, σ_1)`.
-    - σ_2: A 2-tuple of standard deviations used to construct the second 2D
-           Gaussian kernel that will be the subtrahend of the difference. If just
-           a `float` is specified, the spreads will be symmetric: `(σ_2, σ_2)`.
+    - kernel_size: A 2-tuple of the kernel sizes for the height and width spatial
+                   dimensions of the resulting Differece of Gaussians:
+                   `(height, width)`
+    - σs: A 2-tuple of standard deviations used to construct the two 2D Gaussian
+          kernels.
     """
-    kernel = gaussian2d(size, σ_1) - gaussian2d(size, σ_2)
+    σ1, σ2 = σs
+    kernel = gaussian2d(kernel_size, σ1) - gaussian2d(kernel_size, σ2)
     return kernel
 
 
 # Surround Modulation Kernel and Convolution Module.
 
 
-def surround_modulation(size: int, σ_e: float, σ_i: float) -> torch.Tensor:
+def surround_modulation(kernel_size: int, σ_e: float, σ_i: float) -> torch.Tensor:
     """
     Returns a Surround Modulation (`sm`) kernel tensor with the given
-    excitatory and inhibitory standard deviations as described in equation
-    `(2)`.
+    excitatory and inhibitory standard deviations.
+    See equation `(2)` of the paper.
 
     Arguments:
-    - size: The size of the Surround Modulation kernel. The size must be
-            an odd integer > 0 so that the surround modulation kernel can have
-            shape (2k + 1) x (2k + 1), where `k` is the padding size used on an
-            activation input.
+    - kernel_size: The size of the Surround Modulation kernel. The size must be
+                   an odd integer > 0 so that the surround modulation kernel can
+                   have shape (2k + 1) x (2k + 1), where `k` is the padding size
+                   used on an activation input.
     - σ_e: The standard deviation of the excitatory Gaussian.
     - σ_i: The standard deviation of the inhibitory Gaussian.
     """
-    assert size % 2 != 0, f'The kernel size must be odd. Got: {kernel_size}'
+    assert kernel_size % 2 != 0, f'The kernel size must be odd. Got: {kernel_size}'
 
-    center = size // 2
-    dog = DoG((size, size), σ_1=σ_e, σ_2=σ_i)
+    center = kernel_size // 2
+    dog = DoG((kernel_size, kernel_size), σs=(σ_e, σ_i))
     kernel = dog / dog[center][center]
     return kernel
 
@@ -190,10 +174,6 @@ class SMCNN(nn.Module):
 
     Arguments:
     - num_classes: The number of class scores to return.
-    - init_channels: The number of output channels in the initial
-                     convolution + surround modulation layer.
-    - hidden_channels: A list containing the number of output channels
-                       in the hidden convolution layers.
     """
 
     def __init__(

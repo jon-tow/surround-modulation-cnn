@@ -37,13 +37,13 @@ class SurroundModulationTests(unittest.TestCase):
 
     def test_surround_modulation(self):
         def test():
-            sm = model.surround_modulation(5, σ_e=1.2, σ_i=1.4)
+            sm = model.surround_modulation(5, σ_e=1.3, σ_i=1.6)
             print(sm)
         test_it('surround_modulation', test)
 
     def test_dog(self):
         def test():
-            dog = model.DoG((5, 5), σ_1=2.1, σ_2=0.85)
+            dog = model.DoG((5, 5), σs=(2.1, 0.85))
             print(dog)
         test_it('DoG', test)
 
@@ -52,12 +52,6 @@ class SurroundModulationTests(unittest.TestCase):
             g = model.gaussian2d((3, 3), σ=0.5)
             print(g)
         test_it('gaussian2d', test)
-
-    def test_gaussian1d(self):
-        def test():
-            g = model.gaussian1d(3, σ=1.25)
-            print(g)
-        test_it('gaussian1d', test)
 
 
 if __name__ == '__main__':
