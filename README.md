@@ -6,3 +6,5 @@ This is an unofficial PyTorch implementation of the NeurIPS 2019 paper:
 Structure for Convolutional Neural Networks](https://papers.nips.cc/paper/9719-surround-modulation-a-bio-inspired-connectivity-structure-for-convolutional-neural-networks.pdf).
 
 By Hosein Hasani, Mahdieh Soleymani Baghshah, Hamid Aghajan.
+
+![surround-modulation](./surround-modulation.png)
