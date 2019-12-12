@@ -92,7 +92,7 @@ def surround_modulation(kernel_size: int, σ_e: float, σ_i: float) -> torch.Ten
 
 
 class SMConv(nn.Module):
-    """ A module for Surround Modulated (SM) Convolutions. """
+    """ A module for Surround Modulation (SM) Convolutions. """
 
     def __init__(
         self,
@@ -102,7 +102,7 @@ class SMConv(nn.Module):
         mask_p: float = 0.5
     ):
         """
-        Creates a Surround Modulated Convolution layer.
+        Creates a Surround Modulation Convolution layer.
 
         _Note_: This module only works with 2D convolutions.
 
@@ -136,7 +136,8 @@ class SMConv(nn.Module):
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         """
-        Returns the surround modulated activation map of the input activations.
+        Returns a tensor of activation maps with `mask_p` percent of the input
+        maps untouched and the other `1 - mask_p` percent surround-modulated.
 
         Arguments
         - input: An activation tensor map of shape:
